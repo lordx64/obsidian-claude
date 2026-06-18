@@ -1,0 +1,96 @@
+---
+name: obsidian-journal
+description: Append a structured productivity-journal entry to today's Obsidian daily note in the user's vault (~/vault/). Summarize what was discussed and worked on in the current Claude Code session — what was built, bugs hit, fixes applied, open questions, decisions worth remembering. Triggers when the user says "journal this", "log this session", "/journal", "log to obsidian", "save this to my daily note", "update my daily log", "what did we do today", or invokes /obsidian-journal directly. Also use proactively at natural break points (end of a feature, after a debugging session, before context switch) when the user says they're done or wrapping up.
+---
+
+# Obsidian Journal
+
+Append a structured productivity-journal entry to today's Obsidian daily note.
+
+## Vault config
+- **Vault root:** `__VAULT__`
+- **Daily folder:** `__VAULT__/05 Daily`
+- **Filename:** `YYYY-MM-DD.md` (today's date in vault timezone)
+- **Daily template:** `__VAULT__/06 Templates/Daily Template.md`
+
+## Procedure
+
+1. Compute today's date as `YYYY-MM-DD`.
+2. Read the daily note at `__VAULT__/05 Daily/<DATE>.md`.
+   - **If it exists:** prepare to insert a new session block under `## 📝 Log`.
+   - **If it doesn't exist:** create it from `06 Templates/Daily Template.md`, replacing every `{{date}}` with today's date, then proceed.
+3. Summarize the conversation. Use **only what was actually discussed** — never invent file paths, errors, or decisions. If something is uncertain, leave it out.
+4. Build the entry with these section headings, **omitting any heading that has no real content**:
+   - `**Worked on**` — 1–3 bullets. Specific. Use backticks for paths/commands/symbols.
+   - `**Challenges / bugs**` — concrete errors or surprises. Quote messages where useful.
+   - `**Solutions / fixes**` — what unblocked it. The actual change.
+   - `**Still trying to solve**` — open questions, unfinished work.
+   - `**Decisions / context to remember**` — non-obvious choices worth flashing forward.
+5. Use the Edit tool to insert the new block immediately under the `## 📝 Log` heading. Preserve any existing log entries above and below. If `## 📝 Log` is missing, append the section at the end of the file.
+
+## Entry format
+
+```markdown
+### Claude session HH:MM · <short context>
+<one-line "what" summary, 10 words or fewer, no period>
+
+**Worked on**
+- …
+
+**Challenges / bugs**
+- …
+
+**Solutions / fixes**
+- …
+```
+
+The `<short context>` after the timestamp is the project/folder name from `cwd` plus optional detail. Examples:
+- `· vault`
+- `· moe-lens (40% prune execute)`
+- `· obsidian-notes (vault restructure)`
+
+## Style rules
+
+- **Bullets, not paragraphs.** No prose.
+- **Backtick** file paths, commands, function names, error strings.
+- **Skip filler.** Drop empty sections entirely. A 2-bullet entry is better than a padded 5-section entry.
+- **No "we" or "I".** Describe the work, not the actors.
+- **No emoji** in the body. The `## 📝 Log` heading already carries the emoji.
+- **Top line** is a short factual headline, not a sentence with punctuation.
+
+## Examples
+
+**Good:**
+```markdown
+### Claude session 14:32 · vault
+Restructured Obsidian vault into PARA layout
+
+**Worked on**
+- Consolidated 4 overlapping pruning notes into `01 Projects/MoE Expert Pruning.md`
+- Created `Dashboard.md`, `Vault Map.canvas`, 6 templates under `06 Templates/`
+- Moved vault from iCloud to `~/vault/`; initialized local git repo
+
+**Decisions / context to remember**
+- iCloud caused TCC issues for launchd auto-commit — moved out of `~/Documents/`
+- Auto-commit runs hourly via the `*.obsidian-vault-autocommit` LaunchAgent
+- No GitHub remote — Time Machine handles offsite backup
+```
+
+**Bad (avoid):**
+```markdown
+### Claude session 14:32
+Today we did a lot of things in the vault. We talked about Obsidian and how
+to organize notes. We discussed various approaches and chose PARA…
+```
+
+## Edge cases
+
+- **Empty session** — if invoked early with nothing real to log, reply briefly that there's nothing journal-worthy yet and don't write a stub entry.
+- **Multiple invocations same day** — each one appends a new `### Claude session HH:MM` block, oldest at top. Don't merge or replace prior entries.
+- **User specifies a different date** — "log to yesterday" → use yesterday's filename. Create the file from template if it doesn't exist.
+- **User specifies a different target** — "log to the moe-lens project note" → append the same entry under a `## Log` section in `01 Projects/MoE Expert Pruning.md` instead.
+- **Sensitive content** — if the conversation touched secrets, API keys, passwords, or private credentials, omit them from the entry. Reference with `<redacted>`.
+
+## After writing
+
+Reply with one short sentence confirming what was logged and where, e.g. *"Logged to `05 Daily/2026-04-25.md` under the 14:32 session."* Don't re-print the entry.

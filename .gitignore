@@ -1,0 +1,25 @@
+# macOS junk
+.DS_Store
+._*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs (these belong in ~/Library/Logs, not the repo)
+*.log
+
+# Local-only secrets / overrides
+.env
+.env.local
+config.local.sh
+
+# Built artifacts
+dist/
+build/
+
+# Test scratch
+/tmp/
+/.tmp/

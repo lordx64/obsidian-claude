@@ -1,0 +1,153 @@
+---
+name: obsidian-knowledge-review
+description: Review today's Claude session journal entries in the user's Obsidian vault (~/vault/), extract technical concepts/tools/methods that came up, and either expand existing concept notes in 03 Resources/AI/ or create new ones. Builds the user's knowledge graph over time so they can read accumulated learnings on their phone. Triggers when the user says "review today", "extend my notes", "knowledge review", "what did I learn today", "/knowledge-review", "/obsidian-knowledge-review", or when invoked from the nightly launchd cron. Also use proactively at end-of-day when the user signals wrapping up after multiple journal sessions.
+---
+
+# Obsidian Knowledge Review
+
+Read today's daily journal in the user's Obsidian vault, extract technical concepts that came up, and grow the concept-note graph. Output: an updated vault that's worth reading on the phone tonight.
+
+## Vault config
+- **Root:** `__VAULT__`
+- **Daily folder:** `__VAULT__/05 Daily/YYYY-MM-DD.md`
+- **Concepts folder:** `__VAULT__/03 Resources/AI/`
+- **AI MOC:** `__VAULT__/07 Maps/AI MOC.md`
+
+## Procedure
+
+### 1. Read today's journal
+- Compute today's date (`YYYY-MM-DD`).
+- Read `05 Daily/<DATE>.md`. If it doesn't exist, reply briefly that there's nothing to review and stop.
+- Focus on every `### Claude session HH:MM …` block. Collect bullets across all sub-sections (Worked on, Challenges / bugs, Solutions / fixes, Still trying to solve, Decisions / context to remember).
+
+### 2. Extract concept candidates
+Identify technical terms worth tracking — anything a future-self would want a dedicated page for.
+
+**Good candidates:**
+- Methods / algorithms — APEX, GPTQ, AWQ, imatrix calibration, expert pruning, speculative decoding, dynamic padding, LR cosine decay
+- Tools / libraries — Unsloth, vLLM, MLX, lm-eval-harness, causal-conv1d, FLA, llama.cpp, huggingface_hub
+- Architectures / families — MoE, hybrid linear/full attention, Mamba SSM, MTP heads, MRoPE
+- Specific models when they have lasting reference value — Qwen3-30B-A3B, Kimi K2, Mixtral-8x22B
+- Hardware / runtimes — H200, M-series MLX, sharding strategies
+- Frameworks / standards — HF Inference Endpoints, GGUF, fine-grained tokens
+
+**Skip:**
+- Project-specific paths, file names, run IDs, container UUIDs — those belong in project notes
+- Verbatim error messages — capture as a question on the relevant concept note instead
+- Person names, repo URLs unless the repo *itself* is the concept (e.g. `mudler/apex-quant` is)
+- Common terms already obvious to the user (Python, transformers, GPU)
+
+Aim for **5–15 concepts per day**. Be selective: if the journal mentions a tool in passing, a one-line `## Encounters` update is enough — don't create a stub note for everything.
+
+### 3. For each concept candidate, decide
+
+**Look for an existing note** in `03 Resources/AI/` matching the concept (try Title Case, hyphenated, lowercased; tolerate plural/singular variants; check `See also` sections of related notes for redirects).
+
+#### If exists — append, don't rewrite
+1. Add an entry under `## Encounters` (create the section if missing, just before `## See also`):
+   ```markdown
+   - YYYY-MM-DD — <one-line context: what came up about it today, in plain English>. See [[YYYY-MM-DD]].
+   ```
+2. If today exposed a new question or surprise about this concept, append it under `## Open questions` (create if missing, just above `## Encounters`):
+   ```markdown
+   - <question, phrased so future-you can answer it>
+   ```
+3. **Don't overwrite or rephrase existing content.** Only add.
+
+#### If new — create from this template
+Filename: `03 Resources/AI/<Concept Name>.md` in Title Case. Use the actual canonical capitalization (e.g. `vLLM.md`, not `Vllm.md`).
+
+```markdown
+---
+tags: [concept, ai/<sub-area>]
+---
+
+# <Concept Name>
+
+<One-paragraph definition in plain language. Accurate. If you're unsure of a detail, write less rather than guess. Mark "AFAIK" only when you have *partial* knowledge worth recording.>
+
+## Key points
+- <2–4 specific bullets — what makes this thing what it is>
+
+## Trade-offs / why it matters
+- <1–3 bullets — when you'd reach for it vs. alternatives>
+
+## Where it shows up in your work
+- [[<project or daily>]] — <brief context>
+
+## Open questions
+- <questions surfaced by today's journal>
+
+## Encounters
+- YYYY-MM-DD — <context>. See [[YYYY-MM-DD]].
+
+## See also
+- [[<related concept>]]
+```
+
+**Sub-area tags** to use under `ai/`: `moe`, `pruning`, `quantization`, `distillation`, `inference`, `training`, `architecture`, `evaluation`, `hardware`. Pick the closest match; one tag is fine.
+
+### 4. Update the AI MOC
+Open `07 Maps/AI MOC.md`. For every newly-created concept note, add an entry under the appropriate category section (Architecture / Compression / Training / Inference / Foundations / etc.). If a fitting category section doesn't exist, create one. **Don't duplicate** entries that already exist.
+
+### 5. Write a knowledge-review summary back to today's daily note
+
+Append a new section to the daily note, **just before** `## 🔁 End-of-day reflection` (or at the end of the file if that heading is missing):
+
+```markdown
+## 🌱 Knowledge graph updates · HH:MM
+
+**New concept notes** *(N)*
+- [[<Concept>]] — <one-line definition, ~10 words>
+
+**Updated concept notes** *(M)*
+- [[<Concept>]] — <what new context was added>
+
+**Open questions surfaced today**
+- <question> — see [[<concept>]]
+
+**Suggested reading for tonight**
+- [[<concept>]] — best entry point because <reason tied to today's work>
+- [[<concept>]] — related to today's <project context>
+```
+
+If a `## 🌱 Knowledge graph updates` block already exists for today (re-running the skill), don't overwrite — append a new timestamped block underneath.
+
+### 6. Optional — surface external research
+
+Run this only if the user explicitly asked for "research" / "papers" / "what should I read", **or** if WebSearch is available and the concept is novel and actively-investigated.
+
+For the top 2–3 most novel concepts surfaced today:
+- One targeted search (`<concept> arxiv 2025`, `<concept> recent benchmark`, `<concept> blog post`)
+- Append the top 1–2 high-quality results to that concept note's `## Reading queue` section (create if missing, just above `## See also`):
+  ```markdown
+  - [Title](URL) — <one-line why it's worth reading>
+  ```
+- **Quality bar:** prefer arXiv, papers-with-code, official docs/blogs (HF, vLLM, llama.cpp, Anthropic, OpenAI, MLX), primary sources. Skip listicles, content farms, anything paywalled, anything older than 2023 unless foundational.
+
+Do not run searches for every concept. Pick at most 3 per night.
+
+## Style rules
+
+- **Honest about uncertainty.** If you don't know a concept well, write a short, accurate note rather than a long guessy one. Better to skip a section than fabricate.
+- **Backticks** for symbols, paths, errors, version strings, model IDs.
+- **Wikilinks heavily** — every concept name on first appearance, every project, every prior daily note that's load-bearing.
+- **Don't duplicate.** If a sibling concept note already covers something, link to it instead of restating.
+- **Phone-readable.** Short paragraphs, scannable bullets. The user reads this on iOS Obsidian in bed.
+- **No emoji in concept-note bodies.** Reserved for daily-note section headers.
+
+## Edge cases
+
+- **No journal today** — reply that there's nothing to review and stop. Don't write empty sections.
+- **Already reviewed today** — append a new `## 🌱 Knowledge graph updates · HH:MM` block; never overwrite.
+- **Concept appears in 2+ session blocks today** — one Encounters entry that synthesizes the day's takeaway, not one per session.
+- **Concept is sensitive** — if a term ties to a private repo, paid product strategy, or buyer info, write the encounter only in the project note, not in `03 Resources/AI/`.
+- **Concept has multiple plausible canonical names** — pick the most common in the literature and note other names in the body. Don't create duplicate notes.
+- **Conflicting prior content** — if today's journal contradicts an existing concept note, don't silently rewrite. Add an `## Updates` section to the concept note flagging the contradiction with date and source, and surface the conflict in the daily-note summary.
+
+## After running
+
+Reply with one or two sentences:
+> Reviewed N session blocks. Added X new concept notes, updated Y existing. See `## 🌱 Knowledge graph updates` in today's daily for the rundown and tonight's reading list.
+
+Don't reprint the full output.
