@@ -58,7 +58,7 @@ Wake up to a vault that has grown overnight with concept notes for everything yo
 ### Install
 
 ```bash
-git clone https://example.invalid/obsidian-claude.git
+git clone https://github.com/lordx64/obsidian-claude.git
 cd obsidian-claude
 ./install.sh
 ```
